@@ -1,0 +1,54 @@
+---
+- name: Disable technicolor wireless interface
+  hosts: modems
+  gather_facts: false
+  tasks:
+    - name: Retrieve login page
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}"
+        return_content: yes
+      register: page
+    - name: Login to modem
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}{{ modem_link_0 }}"
+        method: "POST"
+        body_format: form-urlencoded
+        body:
+            CSRFValue: "{{ page.content | regex_search('name=\"CSRFValue\" value=([0-9]+)', '\\1') }}"
+            loginUsername: "{{ modem_login }}"
+            loginPassword: "{{ modem_password }}"
+        status_code: 302
+    - name: Retrive wireless page
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}{{ modem_link_1 }}"
+        return_content: yes
+      register: page_wireless
+    - name: Register Wireless state
+      ansible.builtin.set_fact:
+        wifiOn: "{{ page_wireless.content | regex_search('name=\"WirelessEnable\".+option value=([01]) selected', '\\1') }}"
+    - name: Print wifiOn
+      ansible.builtin.debug:
+        var: wifiOn
+    - name: Disable wireless interface
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}{{ modem_link_2 }}"
+        method: "POST"
+        body_format: form-urlencoded
+        body:
+            CSRFValue: "{{ page_wireless.content | regex_search('name=\"CSRFValue\" value=([0-9]+)', '\\1') }}"
+            WirelessEnable: 0
+            OutputPower: 100
+            Band: 1
+            NMode: 1
+            NSupReq: 0
+            NBandwidth: 20
+            ChannelNumber: 36
+            TCPMitigation: 0
+            ObssCoexistence: 1
+            STBCTx: 0
+            CommitRadioSubmit: Apply
+            restoreWirelessDefaults: 0
+            commitwlanRadio: 1
+            scanActions: 0
+        status_code: 302
+      when: wifiOn[0] == "1"

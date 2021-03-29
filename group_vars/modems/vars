@@ -1,0 +1,3 @@
+---
+modem_login: "{{ vault_modem_login }}"
+modem_password: "{{ vault_modem_password }}"
